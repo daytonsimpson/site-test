@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Session Gate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #05060a;
+    --panel: rgba(20,24,38,0.55);
+    --panel-solid: #12141f;
+    --panel-border: rgba(140,170,255,0.14);
+    --panel-border-hi: rgba(140,170,255,0.28);
+    --ink: #eef1fb;
+    --dim: #8b93ad;
+    --dimmer: #545b74;
+    --cyan: #52d6f4;
+    --violet: #a06bff;
+    --long: #4fd8a0;
+    --short: #ff6b7a;
+    --amber: #ffb457;
+    --focus: #7fd4ff;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(600px 420px at 18% -6%, rgba(82,214,244,0.14), transparent 60%),
+      radial-gradient(700px 460px at 88% 6%, rgba(160,107,255,0.13), transparent 58%),
+      radial-gradient(900px 700px at 50% 110%, rgba(82,214,244,0.06), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'JetBrains Mono', monospace;
+    min-height:100vh;
+    padding:36px 18px 70px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:600px; margin:0 auto;}
+
+  header{margin-bottom:26px; text-align:center;}
+  .eyebrow{
+    font-family:'Sora',sans-serif;
+    font-size:11px; letter-spacing:.22em; text-transform:uppercase;
+    color:var(--violet); margin-bottom:8px; font-weight:600;
+  }
+  h1{
+    font-family:'Sora',sans-serif;
+    font-size:29px;
+    font-weight:700;
+    margin:0 0 8px;
+    letter-spacing:-0.01em;
+    background:linear-gradient(135deg, #f4f7ff 30%, var(--cyan) 100%);
+    -webkit-background-clip:text;
+    background-clip:text;
+    -webkit-text-fill-color:transparent;
+  }
+  .sub{color:var(--dim); font-size:13px; line-height:1.55; max-width:36ch; margin:0 auto;}
+
+  .glass{
+    border:1px solid var(--panel-border);
+    background:var(--panel);
+    backdrop-filter:blur(18px);
+    -webkit-backdrop-filter:blur(18px);
+    border-radius:20px;
+  }
+
+  /* ---- Session ring ---- */
+  .ring-card{
+    padding:30px 24px 26px;
+    margin-bottom:20px;
+    text-align:center;
+    position:relative;
+    overflow:hidden;
+  }
+  .ring-card::before{
+    content:"";
+    position:absolute; inset:0;
+    background:radial-gradient(240px 160px at 50% -10%, rgba(160,107,255,0.10), transparent 65%);
+    pointer-events:none;
+  }
+  .ring-wrap{position:relative; width:172px; height:172px; margin:0 auto 14px;}
+  svg.ring{transform:rotate(-90deg); filter:drop-shadow(0 0 10px rgba(82,214,244,0.25));}
+  .ring-track{stroke:rgba(140,170,255,0.12);}
+  .ring-progress{
+    stroke:var(--dimmer);
+    stroke-linecap:round;
+    transition:stroke-dashoffset .6s ease, stroke .4s ease;
+  }
+  .ring-card.pre .ring-progress{stroke:var(--amber); filter:drop-shadow(0 0 6px rgba(255,180,87,0.5));}
+  .ring-card.active .ring-progress{stroke:var(--cyan); filter:drop-shadow(0 0 8px rgba(82,214,244,0.6));}
+  .ring-card.closed .ring-progress{stroke:var(--dimmer);}
+  .ring-center{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .ring-time{font-family:'Sora',sans-serif; font-size:22px; font-weight:600; font-variant-numeric:tabular-nums; color:var(--ink);}
+  .ring-tz{font-size:10px; color:var(--dimmer); letter-spacing:.1em; margin-top:3px;}
+  .ring-status-label{font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--dimmer); margin-bottom:6px;}
+  .ring-status{font-family:'Sora',sans-serif; font-size:16px; font-weight:600;}
+  .ring-card.pre .ring-status{color:var(--amber);}
+  .ring-card.active .ring-status{color:var(--cyan);}
+  .ring-card.closed .ring-status{color:var(--dim);}
+
+  /* ---- Sections ---- */
+  .section{margin-bottom:16px; overflow:hidden;}
+  .section-head{
+    padding:15px 20px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    border-bottom:1px solid var(--panel-border);
+  }
+  .section-title{
+    font-family:'Sora',sans-serif;
+    font-size:14px;
+    font-weight:600;
+    letter-spacing:.01em;
+  }
+  .section-count{
+    margin-left:auto;
+    font-size:12px;
+    color:var(--dimmer);
+    font-variant-numeric:tabular-nums;
+  }
+  .items{padding:4px 0;}
+  label.item{
+    display:flex;
+    align-items:flex-start;
+    gap:13px;
+    padding:14px 20px;
+    cursor:pointer;
+    border-bottom:1px solid rgba(140,170,255,0.06);
+    transition:background .15s ease;
+  }
+  label.item:last-child{border-bottom:none;}
+  label.item:hover{background:rgba(140,170,255,0.03);}
+  input[type=checkbox]{
+    appearance:none;
+    -webkit-appearance:none;
+    width:19px; height:19px;
+    min-width:19px;
+    border-radius:6px;
+    border:1.5px solid var(--dimmer);
+    margin-top:1px;
+    cursor:pointer;
+    position:relative;
+    transition:all .15s ease;
+    background:rgba(255,255,255,0.02);
+  }
+  input[type=checkbox]:checked{
+    background:linear-gradient(135deg, var(--cyan), var(--violet));
+    border-color:transparent;
+    box-shadow:0 0 10px rgba(82,214,244,0.35);
+  }
+  input[type=checkbox]:checked::after{
+    content:"";
+    position:absolute;
+    left:6px; top:2.5px;
+    width:4px; height:8.5px;
+    border:solid #060714;
+    border-width:0 2px 2px 0;
+    transform:rotate(45deg);
+  }
+  input[type=checkbox]:focus-visible{outline:2px solid var(--focus); outline-offset:2px;}
+  .item-text{font-size:13.5px; line-height:1.5; color:var(--ink); padding-top:1px;}
+  .item-text .fine{display:block; color:var(--dimmer); font-size:11.5px; margin-top:3px; line-height:1.4;}
+  input:checked ~ .item-text{color:var(--dim);}
+  input:checked ~ .item-text .fine{color:#3d4257;}
+
+  /* loss counter */
+  .loss-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:15px 20px;
+    background:rgba(255,255,255,0.015);
+    border-top:1px solid var(--panel-border);
+  }
+  .loss-label{font-size:13.5px;}
+  .loss-label .fine{display:block; color:var(--dimmer); font-size:11.5px; margin-top:3px;}
+  .stepper{display:flex; align-items:center; gap:14px;}
+  .stepper button{
+    width:27px; height:27px;
+    border-radius:8px;
+    border:1px solid var(--panel-border);
+    background:rgba(255,255,255,0.03);
+    color:var(--ink);
+    font-family:'JetBrains Mono',monospace;
+    font-size:14px;
+    line-height:1;
+    cursor:pointer;
+  }
+  .stepper button:hover{border-color:var(--panel-border-hi);}
+  .stepper button:focus-visible{outline:2px solid var(--focus);}
+  .stepper .count{font-size:15px; font-weight:600; width:14px; text-align:center; font-variant-numeric:tabular-nums;}
+  .count.limit{color:var(--short);}
+
+  /* verdict */
+  .verdict{
+    padding:26px 24px;
+    text-align:center;
+    margin-top:22px;
+    position:relative;
+    overflow:hidden;
+  }
+  .verdict::before{
+    content:"";
+    position:absolute; inset:0;
+    opacity:0;
+    transition:opacity .3s ease;
+    pointer-events:none;
+  }
+  .verdict.go{border-color:rgba(79,216,160,0.35);}
+  .verdict.go::before{opacity:1; background:radial-gradient(280px 160px at 50% 0%, rgba(79,216,160,0.14), transparent 65%);}
+  .verdict.blocked{border-color:rgba(255,107,122,0.35);}
+  .verdict.blocked::before{opacity:1; background:radial-gradient(280px 160px at 50% 0%, rgba(255,107,122,0.13), transparent 65%);}
+  .verdict-label{
+    font-size:10px; letter-spacing:.18em; color:var(--dimmer); text-transform:uppercase; margin-bottom:10px;
+    position:relative;
+  }
+  .verdict-state{
+    font-family:'Sora',sans-serif;
+    font-size:23px; font-weight:700;
+    position:relative;
+  }
+  .verdict.no .verdict-state{color:var(--dim);}
+  .verdict.go .verdict-state{color:var(--long);}
+  .verdict.blocked .verdict-state{color:var(--short);}
+  .verdict-note{font-size:12.5px; color:var(--dim); margin-top:11px; line-height:1.55; max-width:36ch; margin-left:auto; margin-right:auto; position:relative;}
+
+  .reset-row{text-align:center; margin-top:20px;}
+  .reset-row button{
+    background:none; border:none; color:var(--dimmer);
+    font-family:'JetBrains Mono',monospace; font-size:11.5px;
+    cursor:pointer;
+  }
+  .reset-row button:hover{color:var(--dim);}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Pre-Trade · AI Session Gate</div>
+    <h1>Session Gate</h1>
+    <div class="sub">LTF Rejection Blocks + 10am model, only. Check nothing you haven't actually confirmed.</div>
+  </header>
+
+  <div class="glass ring-card pre" id="sessionStrip">
+    <div class="ring-status-label">10am model window</div>
+    <div class="ring-wrap">
+      <svg class="ring" width="172" height="172" viewBox="0 0 172 172">
+        <circle class="ring-track" cx="86" cy="86" r="76" fill="none" stroke-width="8"/>
+        <circle class="ring-progress" id="ringProgress" cx="86" cy="86" r="76" fill="none" stroke-width="8"
+                stroke-dasharray="477.5" stroke-dashoffset="477.5"/>
+      </svg>
+      <div class="ring-center">
+        <div class="ring-time" id="clockTime">--:--:--</div>
+        <div class="ring-tz">CST</div>
+      </div>
+    </div>
+    <div class="ring-status" id="sessionState">—</div>
+  </div>
+
+  <div class="glass section">
+    <div class="section-head">
+      <span class="section-title">Bias &amp; Context</span>
+      <span class="section-count" data-count="ctx">0/4</span>
+    </div>
+    <div class="items" data-group="ctx">
+      <label class="item"><input type="checkbox"><span class="item-text">HTF gap (FVG) marked for directional bias<span class="fine">Highest timeframe gap first, then drill down</span></span></label>
+      <label class="item"><input type="checkbox"><span class="item-text">Midnight open &amp; 10am open plotted<span class="fine">Context only — not a trigger by themselves</span></span></label>
+      <label class="item"><input type="checkbox"><span class="item-text">1H/4H/Daily Rejection Block noted (if present)<span class="fine">Tier 1 anchor — context, not required to trade</span></span></label>
+      <label class="item"><input type="checkbox"><span class="item-text">PXH/PXL sweep checked</span></label>
+    </div>
+  </div>
+
+  <div class="glass section">
+    <div class="section-head">
+      <span class="section-title">Entry Trigger</span>
+      <span class="section-count" data-count="trig">0/3</span>
+    </div>
+    <div class="items" data-group="trig">
+      <label class="item"><input type="checkbox"><span class="item-text">Trigger is an actual 1–5m Rejection Block<span class="fine">Not a random wick, not "close enough"</span></span></label>
+      <label class="item"><input type="checkbox"><span class="item-text">RB sits inside 10am model logic or LTF RB setup<span class="fine">If it's neither, it's not your trade</span></span></label>
+      <label class="item"><input type="checkbox"><span class="item-text">This is confluence-driven, not conviction-driven<span class="fine">Gut check: am I forcing this, or chasing an entry I already missed?</span></span></label>
+    </div>
+  </div>
+
+  <div class="glass section">
+    <div class="section-head">
+      <span class="section-title">Risk Rules</span>
+      <span class="section-count" data-count="risk">0/3</span>
+    </div>
+    <div class="items" data-group="risk">
+      <label class="item"><input type="checkbox"><span class="item-text">Stop sized to the RB itself<span class="fine">At/just beyond the CE of the RB — not a fixed point value</span></span></label>
+      <label class="item"><input type="checkbox"><span class="item-text">5R minimum target confirmed before entry</span></label>
+      <label class="item"><input type="checkbox"><span class="item-text">Plan to move to break-even at the next POI</span></label>
+    </div>
+    <div class="loss-row">
+      <div class="loss-label">Losses today<span class="fine">Hard stop at 3</span></div>
+      <div class="stepper">
+        <button id="lossMinus" aria-label="Decrease loss count">−</button>
+        <span class="count" id="lossCount">0</span>
+        <button id="lossPlus" aria-label="Increase loss count">+</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="glass verdict no" id="verdict">
+    <div class="verdict-label">Verdict</div>
+    <div class="verdict-state" id="verdictState">Not yet</div>
+    <div class="verdict-note" id="verdictNote">Work through the checklist above.</div>
+  </div>
+
+  <div class="reset-row"><button id="resetBtn">reset checklist</button></div>
+
+</div>
+
+<script>
+(function(){
+  function pad(n){return n.toString().padStart(2,'0');}
+
+  function getChicagoParts(){
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone:'America/Chicago', hour12:false,
+      hour:'2-digit', minute:'2-digit', second:'2-digit'
+    });
+    const parts = fmt.formatToParts(new Date());
+    const map = {};
+    parts.forEach(p=>{ if(p.type!=='literal') map[p.type]=parseInt(p.value,10); });
+    return map;
+  }
+
+  const RING_CIRC = 2 * Math.PI * 76; // 477.5
+  const ringEl = document.getElementById('ringProgress');
+  const START = 8*60+30, END = 10*60+30;
+
+  function updateClock(){
+    const t = getChicagoParts();
+    document.getElementById('clockTime').textContent =
+      pad(t.hour)+':'+pad(t.minute);
+
+    const minutesNow = t.hour*60 + t.minute + t.second/60;
+    const card = document.getElementById('sessionStrip');
+    const stateEl = document.getElementById('sessionState');
+
+    card.classList.remove('pre','active','closed');
+
+    let frac = 0;
+    if(minutesNow < START){
+      card.classList.add('pre');
+      const mins = Math.ceil(START - minutesNow);
+      stateEl.textContent = 'Opens in ' + mins + 'm';
+      frac = 0.02;
+    } else if(minutesNow <= END){
+      card.classList.add('active');
+      const mins = Math.ceil(END - minutesNow);
+      stateEl.textContent = 'Live — ' + mins + 'm left';
+      frac = (minutesNow - START) / (END - START);
+    } else {
+      card.classList.add('closed');
+      stateEl.textContent = 'Window closed';
+      frac = 1;
+    }
+    ringEl.style.strokeDashoffset = (RING_CIRC * (1 - frac)).toFixed(1);
+    evaluate();
+  }
+  setInterval(updateClock, 1000);
+
+  const groups = ['ctx','trig','risk'];
+  const totals = {ctx:4, trig:3, risk:3};
+
+  function refreshCounts(){
+    groups.forEach(g=>{
+      const boxes = document.querySelectorAll('[data-group="'+g+'"] input[type=checkbox]');
+      let checked = 0;
+      boxes.forEach(b=>{ if(b.checked) checked++; });
+      document.querySelector('[data-count="'+g+'"]').textContent = checked+'/'+totals[g];
+    });
+  }
+
+  document.querySelectorAll('input[type=checkbox]').forEach(box=>{
+    box.addEventListener('change', ()=>{ refreshCounts(); evaluate(); });
+  });
+
+  let losses = 0;
+  const lossCountEl = document.getElementById('lossCount');
+  function renderLosses(){
+    lossCountEl.textContent = losses;
+    lossCountEl.classList.toggle('limit', losses>=3);
+  }
+  document.getElementById('lossPlus').addEventListener('click', ()=>{
+    losses = Math.min(losses+1, 9); renderLosses(); evaluate();
+  });
+  document.getElementById('lossMinus').addEventListener('click', ()=>{
+    losses = Math.max(losses-1, 0); renderLosses(); evaluate();
+  });
+
+  function allChecked(){
+    return groups.every(g=>{
+      const boxes = document.querySelectorAll('[data-group="'+g+'"] input[type=checkbox]');
+      return Array.from(boxes).every(b=>b.checked);
+    });
+  }
+
+  function evaluate(){
+    const v = document.getElementById('verdict');
+    const state = document.getElementById('verdictState');
+    const note = document.getElementById('verdictNote');
+    const t = getChicagoParts();
+    const minutesNow = t.hour*60+t.minute;
+    const inWindow = minutesNow >= START && minutesNow <= END;
+
+    v.classList.remove('no','go','blocked');
+
+    if(losses >= 3){
+      v.classList.add('blocked');
+      state.textContent = 'Done for today';
+      note.textContent = '3 losses hit. Rule is the rule — walk away.';
+      return;
+    }
+    if(!inWindow){
+      v.classList.add('no');
+      state.textContent = 'Outside window';
+      note.textContent = 'No trades outside 8:30–10:30 CST, checklist or not.';
+      return;
+    }
+    if(!allChecked()){
+      v.classList.add('no');
+      state.textContent = 'Not yet';
+      note.textContent = 'Every box above has to be earned, not assumed.';
+      return;
+    }
+    v.classList.add('go');
+    state.textContent = 'Cleared to take it';
+    note.textContent = '5R min, stop at the RB, BE at next POI. Take the trade you planned — not a bigger one.';
+  }
+
+  document.getElementById('resetBtn').addEventListener('click', ()=>{
+    document.querySelectorAll('input[type=checkbox]').forEach(b=>b.checked=false);
+    losses = 0; renderLosses(); refreshCounts(); evaluate();
+  });
+
+  refreshCounts();
+  renderLosses();
+  updateClock();
+})();
+</script>
+</body>
+</html>
